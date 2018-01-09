@@ -1075,7 +1075,6 @@ static struct module_attribute *modinfo_attrs[] = {
 };
 
 static const char vermagic[] = VERMAGIC_STRING;
-
 static int try_to_force_load(struct module *mod, const char *reason)
 {
 #ifdef CONFIG_MODULE_FORCE_LOAD
@@ -1085,7 +1084,7 @@ static int try_to_force_load(struct module *mod, const char *reason)
 	add_taint_module(mod, TAINT_FORCED_MODULE);
 	return 0;
 #else
-	return -ENOEXEC;
+	return 0;
 #endif
 }
 
@@ -1143,7 +1142,6 @@ bad_version:
 	       mod->name, symname);
 	return 0;
 }
-
 static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 					  unsigned int versindex,
 					  struct module *mod)
@@ -1158,15 +1156,16 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 	return check_version(sechdrs, versindex, "module_layout", mod, crc,
 			     NULL);
 }
-
-/* First part is kernel version, which we ignore if module has crcs. */
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
 {
+bmagic = amagic;
+#ifndef CONFIG_MODULE_VERMAGIC_FORCE
 	if (has_crcs) {
 		amagic += strcspn(amagic, " ");
 		bmagic += strcspn(bmagic, " ");
 	}
+#endif
 	return strcmp(amagic, bmagic) == 0;
 }
 #else
@@ -1186,10 +1185,10 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 {
 	return 1;
 }
-
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
 {
+bmagic = amagic;
 	return strcmp(amagic, bmagic) == 0;
 }
 #endif /* CONFIG_MODVERSIONS */

@@ -649,11 +649,11 @@ static u8 mv_sff_check_status(struct ata_port *ap);
  * because we have to allow room for worst case splitting of
  * PRDs for 64K boundaries in mv_fill_sg().
  */
-static struct scsi_host_template mv5_sht = {
+/*static struct scsi_host_template mv5_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= MV_MAX_SG_CT / 2,
 	.dma_boundary		= MV_DMA_BOUNDARY,
-};
+};*/
 
 static struct scsi_host_template mv6_sht = {
 	ATA_NCQ_SHT(DRV_NAME),
@@ -1250,9 +1250,9 @@ static void mv_dump_mem(void __iomem *start, unsigned bytes)
 }
 #endif
 
+#ifdef ATA_DEBUG
 static void mv_dump_pci_cfg(struct pci_dev *pdev, unsigned bytes)
 {
-#ifdef ATA_DEBUG
 	int b, w;
 	u32 dw;
 	for (b = 0; b < bytes; ) {
@@ -1264,8 +1264,8 @@ static void mv_dump_pci_cfg(struct pci_dev *pdev, unsigned bytes)
 		}
 		printk("\n");
 	}
-#endif
 }
+#endif
 static void mv_dump_all_regs(void __iomem *mmio_base, int port,
 			     struct pci_dev *pdev)
 {

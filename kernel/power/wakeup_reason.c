@@ -14,7 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
 #include <linux/wakeup_reason.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
@@ -27,6 +26,7 @@
 #include <linux/notifier.h>
 #include <linux/suspend.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 static bool suspend_abort;
 static char abort_reason[MAX_SUSPEND_ABORT_LEN];
@@ -487,7 +487,7 @@ int check_wakeup_reason(int irq)
 	spin_unlock(&resume_reason_lock);
 	return found;
 }
-
+EXPORT_SYMBOL(check_wakeup_reason);
 static bool build_leaf_nodes(struct wakeup_irq_node *n, void *_p)
 {
 	struct list_head *wakeups = _p;
