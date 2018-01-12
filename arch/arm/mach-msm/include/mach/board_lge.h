@@ -59,3 +59,13 @@ void __init lge_reserve(void);
 void __init lge_add_persistent_device(void);
 
 #endif
+
+
+#ifndef __ARCH_ARM_MACH_MSM_BOARD_SONY_SHINANO_WIFI_H
+#define __ARCH_ARM_MACH_MSM_BOARD_SONY_SHINANO_WIFI_H
+
+extern int shinano_wifi_status_register(
+	void (*callback)(int card_present, void *dev_id), void *dev_id);
+extern unsigned int shinano_wifi_status(struct device *dev);
+
+#endif

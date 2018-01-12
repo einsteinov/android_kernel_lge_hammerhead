@@ -152,13 +152,15 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		else
 			sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta) {
-			ieee80211_key_free_unused(key);
+			ieee80211_key_free(sdata->local, key);
 			err = -ENOENT;
 			goto out_unlock;
 		}
 	}
 
 	err = ieee80211_key_link(key, sdata, sta);
+	if (err)
+		ieee80211_key_free(sdata->local, key);
 
  out_unlock:
 	mutex_unlock(&sdata->local->sta_mtx);
@@ -1466,14 +1468,13 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 static int ieee80211_set_channel(struct wiphy *wiphy,
 				 struct net_device *netdev,
 				 struct ieee80211_channel *chan,
-				 enum nl80211_channel_type channel_type)
+				 enum nl80211_chan_width chan_width)//enum nl80211_channel_type channel_type)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_channel *old_oper;
 	enum nl80211_channel_type old_oper_type;
 	enum nl80211_channel_type old_vif_oper_type= NL80211_CHAN_NO_HT;
-
 	if (netdev)
 		sdata = IEEE80211_DEV_TO_SUB_IF(netdev);
 
@@ -1483,8 +1484,8 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 	case CHAN_MODE_FIXED:
 		if (local->oper_channel != chan)
 			return -EBUSY;
-		if (!sdata && local->_oper_channel_type == channel_type)
-			return 0;
+		//if (!sdata && local->_oper_channel_width == chan_width)
+		//	return 0;
 		break;
 	case CHAN_MODE_UNDEFINED:
 		break;
@@ -1494,7 +1495,7 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 		old_vif_oper_type = sdata->vif.bss_conf.channel_type;
 	old_oper_type = local->_oper_channel_type;
 
-	if (!ieee80211_set_channel_type(local, sdata, channel_type))
+	if (!ieee80211_set_channel_type(local, sdata, chan_width))
 		return -EBUSY;
 
 	old_oper = local->oper_channel;
@@ -2438,8 +2439,8 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 
 static int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 			       u8 *peer, u8 action_code, u8 dialog_token,
-			       u16 status_code, const u8 *extra_ies,
-			       size_t extra_ies_len)
+			       u16 status_code, u32 peer_capability,
+			       const u8 *extra_ies, size_t extra_ies_len)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;

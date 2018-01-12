@@ -1,7 +1,7 @@
 /*
  * Linux Wireless Extensions support
  *
- * Copyright (C) 1999-2013, Broadcom Corporation
+ * Copyright (C) 1999-2014, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.c 396420 2013-04-12 06:55:45Z $
+ * $Id: wl_iw.c 467328 2014-04-03 01:23:40Z $
  */
 
 #if defined(USE_IW)
@@ -87,12 +87,12 @@ uint wl_msg_level = WL_ERROR_VAL;
 #define MAX_WLIW_IOCTL_LEN 1024
 
 /* IOCTL swapping mode for Big Endian host with Little Endian dongle.  Default to off */
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
+#define htod32(i) (i)
+#define htod16(i) (i)
+#define dtoh32(i) (i)
+#define dtoh16(i) (i)
+#define htodchanspec(i) (i)
+#define dtohchanspec(i) (i)
 
 extern struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
 extern int dhd_wait_pend8021x(struct net_device *dev);
@@ -104,7 +104,10 @@ extern int dhd_wait_pend8021x(struct net_device *dev);
 
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-#define DAEMONIZE(a)
+#define DAEMONIZE(a)	do { \
+		allow_signal(SIGKILL);	\
+		allow_signal(SIGTERM);	\
+	} while (0)
 #elif ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)) && \
 	(LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)))
 #define DAEMONIZE(a) daemonize(a); \
@@ -139,6 +142,9 @@ typedef struct iscan_info {
 	iscan_buf_t * list_cur;
 
 	/* Thread to work on iscan */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+	struct task_struct *kthread;
+#endif
 	long sysioc_pid;
 	struct semaphore sysioc_sem;
 	struct completion sysioc_exited;
@@ -213,13 +219,6 @@ dev_wlc_ioctl(
 	strcpy(ifr.ifr_name, dev->name);
 	ifr.ifr_data = (caddr_t) &ioc;
 
-#ifndef LINUX_HYBRID
-	/* Causes an extraneous 'up'.  If specific ioctls are failing due
-	   to device down, then we can investigate those ioctls.
-	*/
-	dev_open(dev);
-#endif
-
 	fs = get_fs();
 	set_fs(get_ds());
 #if defined(WL_USE_NETDEV_OPS)
@@ -248,7 +247,7 @@ dev_wlc_intvar_set(
 
 	val = htod32(val);
 	len = bcm_mkiovar(name, (char *)(&val), sizeof(val), buf, sizeof(buf));
-	ASSERT(len);
+	DHD_WARN(len, return BCME_ERROR;);
 
 	return (dev_wlc_ioctl(dev, WLC_SET_VAR, buf, len));
 }
@@ -265,7 +264,7 @@ dev_iw_iovar_setbuf(
 	int iolen;
 
 	iolen = bcm_mkiovar(iovar, param, paramlen, bufptr, buflen);
-	ASSERT(iolen);
+	DHD_WARN(iolen, return BCME_ERROR;);
 	BCM_REFERENCE(iolen);
 
 	return (dev_wlc_ioctl(dev, WLC_SET_VAR, bufptr, iolen));
@@ -283,7 +282,7 @@ dev_iw_iovar_getbuf(
 	int iolen;
 
 	iolen = bcm_mkiovar(iovar, param, paramlen, bufptr, buflen);
-	ASSERT(iolen);
+	DHD_WARN(iolen, return BCME_ERROR;);
 	BCM_REFERENCE(iolen);
 
 	return (dev_wlc_ioctl(dev, WLC_GET_VAR, bufptr, buflen));
@@ -305,7 +304,7 @@ dev_wlc_bufvar_set(
 		return -ENOMEM;
 
 	buflen = bcm_mkiovar(name, buf, len, ioctlbuf, MAX_WLIW_IOCTL_LEN);
-	ASSERT(buflen);
+	DHD_WARN(buflen, return BCME_ERROR;);
 	error = dev_wlc_ioctl(dev, WLC_SET_VAR, ioctlbuf, buflen);
 
 	kfree(ioctlbuf);
@@ -333,7 +332,7 @@ dev_wlc_bufvar_get(
 	if (!ioctlbuf)
 		return -ENOMEM;
 	len = bcm_mkiovar(name, NULL, 0, ioctlbuf, MAX_WLIW_IOCTL_LEN);
-	ASSERT(len);
+	DHD_WARN(len, return BCME_ERROR;);
 	BCM_REFERENCE(len);
 	error = dev_wlc_ioctl(dev, WLC_GET_VAR, (void *)ioctlbuf, MAX_WLIW_IOCTL_LEN);
 	if (!error)
@@ -364,7 +363,7 @@ dev_wlc_intvar_get(
 	uint data_null;
 
 	len = bcm_mkiovar(name, (char *)(&data_null), 0, (char *)(&var), sizeof(var.buf));
-	ASSERT(len);
+	DHD_WARN(len, return BCME_ERROR;);
 	error = dev_wlc_ioctl(dev, WLC_GET_VAR, (void *)&var, len);
 
 	*retval = dtoh32(var.val);
@@ -769,7 +768,7 @@ wl_iw_get_range(
 				nrate_list2copy = 3;
 		}
 		range->num_bitrates += 8;
-		ASSERT(range->num_bitrates < IW_MAX_BITRATES);
+		DHD_WARN(range->num_bitrates < IW_MAX_BITRATES, return BCME_ERROR;);
 		for (k = 0; i < range->num_bitrates; k++, i++) {
 			/* convert to bps */
 			range->bitrate[i] = (nrate_list[nrate_list2copy][k]) * 500000;
@@ -1078,12 +1077,12 @@ wl_iw_get_aplist(
 	list->buflen = dtoh32(list->buflen);
 	list->version = dtoh32(list->version);
 	list->count = dtoh32(list->count);
-	ASSERT(list->version == WL_BSS_INFO_VERSION);
+	DHD_WARN(list->version == WL_BSS_INFO_VERSION, kfree(list);return BCME_ERROR;);
 
 	for (i = 0, dwrq->length = 0; i < list->count && dwrq->length < IW_MAX_AP; i++) {
 		bi = bi ? (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length)) : list->bss_info;
-		ASSERT(((uintptr)bi + dtoh32(bi->length)) <= ((uintptr)list +
-			buflen));
+		DHD_WARN(((uintptr)bi + dtoh32(bi->length)) <= ((uintptr)list +
+			buflen), kfree(list);return BCME_ERROR;);
 
 		/* Infrastructure only */
 		if (!(dtoh16(bi->capability) & DOT11_CAP_ESS))
@@ -1147,13 +1146,13 @@ wl_iw_iscan_get_aplist(
 	/* Get scan results (too large to put on the stack) */
 	while (buf) {
 	    list = &((wl_iscan_results_t*)buf->iscan_buf)->results;
-	    ASSERT(list->version == WL_BSS_INFO_VERSION);
+		DHD_WARN(list->version == WL_BSS_INFO_VERSION, return BCME_ERROR;);
 
 	    bi = NULL;
 	for (i = 0, dwrq->length = 0; i < list->count && dwrq->length < IW_MAX_AP; i++) {
 		bi = bi ? (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length)) : list->bss_info;
-		ASSERT(((uintptr)bi + dtoh32(bi->length)) <= ((uintptr)list +
-			WLC_IW_ISCAN_MAXLEN));
+		DHD_WARN(((uintptr)bi + dtoh32(bi->length)) <= ((uintptr)list +
+			WLC_IW_ISCAN_MAXLEN), return BCME_ERROR;);
 
 		/* Infrastructure only */
 		if (!(dtoh16(bi->capability) & DOT11_CAP_ESS))
@@ -1331,6 +1330,17 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 		uint8 *ptr = ((uint8 *)bi) + sizeof(wl_bss_info_t);
 		int ptr_len = bi->ie_length;
 
+		/* OSEN IE */
+		if ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_VS_ID)) &&
+			ie->len > WFA_OUI_LEN + 1 &&
+			!bcmp((const void *)&ie->data[0], (const void *)WFA_OUI, WFA_OUI_LEN) &&
+			ie->data[WFA_OUI_LEN] == WFA_OUI_TYPE_OSEN) {
+			iwe.cmd = IWEVGENIE;
+			iwe.u.data.length = ie->len + 2;
+			event = IWE_STREAM_ADD_POINT(info, event, end, &iwe, (char *)ie);
+		}
+		ptr = ((uint8 *)bi) + sizeof(wl_bss_info_t);
+
 		if ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_RSN_ID))) {
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = ie->len + 2;
@@ -1414,12 +1424,8 @@ wl_iw_get_scan(
 	list->version = dtoh32(list->version);
 	list->count = dtoh32(list->count);
 
-	ASSERT(list->version == WL_BSS_INFO_VERSION);
-
 	for (i = 0; i < list->count && i < IW_MAX_AP; i++) {
 		bi = bi ? (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length)) : list->bss_info;
-		ASSERT(((uintptr)bi + dtoh32(bi->length)) <= ((uintptr)list +
-			buflen));
 
 		/* First entry must be the BSSID */
 		iwe.cmd = SIOCGIWAP;
@@ -1445,8 +1451,9 @@ wl_iw_get_scan(
 
 		/* Channel */
 		iwe.cmd = SIOCGIWFREQ;
+
 		iwe.u.freq.m = wf_channel2mhz(CHSPEC_CHANNEL(bi->chanspec),
-			CHSPEC_CHANNEL(bi->chanspec) <= CH_MAX_2G_CHANNEL ?
+			(CHSPEC_IS2G(bi->chanspec)) ?
 			WF_CHAN_FACTOR_2_4_G : WF_CHAN_FACTOR_5_G);
 		iwe.u.freq.e = 6;
 		event = IWE_STREAM_ADD_EVENT(info, event, end, &iwe, IW_EV_FREQ_LEN);
@@ -1537,8 +1544,6 @@ wl_iw_iscan_get_scan(
 	    bi = NULL;
 	    for (ii = 0; ii < list->count && apcnt < IW_MAX_AP; apcnt++, ii++) {
 		bi = bi ? (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length)) : list->bss_info;
-		ASSERT(((uintptr)bi + dtoh32(bi->length)) <= ((uintptr)list +
-			WLC_IW_ISCAN_MAXLEN));
 
 		/* overflow check cover fields before wpa IEs */
 		if (event + ETHER_ADDR_LEN + bi->SSID_len + IW_EV_UINT_LEN + IW_EV_FREQ_LEN +
@@ -1568,8 +1573,9 @@ wl_iw_iscan_get_scan(
 
 		/* Channel */
 		iwe.cmd = SIOCGIWFREQ;
+
 		iwe.u.freq.m = wf_channel2mhz(CHSPEC_CHANNEL(bi->chanspec),
-			CHSPEC_CHANNEL(bi->chanspec) <= CH_MAX_2G_CHANNEL ?
+			(CHSPEC_IS2G(bi->chanspec)) ?
 			WF_CHAN_FACTOR_2_4_G : WF_CHAN_FACTOR_5_G);
 		iwe.u.freq.e = 6;
 		event = IWE_STREAM_ADD_EVENT(info, event, end, &iwe, IW_EV_FREQ_LEN);
@@ -3478,7 +3484,7 @@ wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, uint16 action)
 		return -ENOMEM;
 	}
 	memset(params, 0, params_size);
-	ASSERT(params_size < WLC_IOCTL_SMLEN);
+	DHD_WARN(params_size < WLC_IOCTL_SMLEN, kfree(params);return BCME_ERROR;);
 
 	err = wl_iw_iscan_prep(&params->params, ssid);
 
@@ -3638,6 +3644,9 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 	if (!iscan)
 		return -ENOMEM;
 	memset(iscan, 0, sizeof(iscan_info_t));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+	iscan->kthread = NULL;
+#endif
 	iscan->sysioc_pid = -1;
 	/* we only care about main interface so save a global here */
 	g_iscan = iscan;
@@ -3653,7 +3662,12 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 
 	sema_init(&iscan->sysioc_sem, 0);
 	init_completion(&iscan->sysioc_exited);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+	iscan->kthread = kthread_run(_iscan_sysioc_thread, iscan, "iscan_sysioc");
+	iscan->sysioc_pid = iscan->kthread->pid;
+#else
 	iscan->sysioc_pid = kernel_thread(_iscan_sysioc_thread, iscan, 0);
+#endif
 	if (iscan->sysioc_pid < 0)
 		return -ENOMEM;
 	return 0;

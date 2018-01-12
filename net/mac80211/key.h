@@ -31,7 +31,12 @@
 #define CMAC_PN_LEN		6
 
 #define NUM_RX_DATA_QUEUES	16
-
+#define IEEE80211_GMAC_PN_LEN		6
+#define IEEE80211_NUM_TIDS		16
+#define IEEE80211_GCMP_PN_LEN		6
+#define IEEE80211_GCMP_HDR_LEN		8
+#define IEEE80211_GCMP_MIC_LEN		16
+#define IEEE80211_GCMP_PN_LEN		6
 struct ieee80211_local;
 struct ieee80211_sub_if_data;
 struct sta_info;
@@ -103,6 +108,24 @@ struct ieee80211_key {
 			u32 replays; /* dot11RSNAStatsCMACReplays */
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
 		} aes_cmac;
+        struct {
+			atomic64_t tx_pn;
+			u8 rx_pn[IEEE80211_GMAC_PN_LEN];
+			struct crypto_aead *tfm;
+			u32 replays; /* dot11RSNAStatsCMACReplays */
+			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
+		} aes_gmac;
+        struct {
+			atomic64_t tx_pn;
+			/* Last received packet number. The first
+			 * IEEE80211_NUM_TIDS counters are used with Data
+			 * frames and the last counter is used with Robust
+			 * Management frames.
+			 */
+			u8 rx_pn[IEEE80211_NUM_TIDS + 1][IEEE80211_GCMP_PN_LEN];
+			struct crypto_aead *tfm;
+			u32 replays; /* dot11RSNAStatsGCMPReplays */
+		} gcmp;
 	} u;
 
 	/* number of times this key has been used */
@@ -128,13 +151,14 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 					  size_t seq_len, const u8 *seq);
 /*
  * Insert a key into data structures (sdata, sta if necessary)
- * to make it used, free old key. On failure, also free the new key.
+ * to make it used, free old key.
  */
-int ieee80211_key_link(struct ieee80211_key *key,
-		       struct ieee80211_sub_if_data *sdata,
-		       struct sta_info *sta);
+int __must_check ieee80211_key_link(struct ieee80211_key *key,
+				    struct ieee80211_sub_if_data *sdata,
+				    struct sta_info *sta);
 void __ieee80211_key_free(struct ieee80211_key *key);
-void ieee80211_key_free_unused(struct ieee80211_key *key);
+void ieee80211_key_free(struct ieee80211_local *local,
+			struct ieee80211_key *key);
 void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx,
 			       bool uni, bool multi);
 void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
@@ -142,7 +166,7 @@ void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata);
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata);
 void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata);
-
+void ieee80211_key_free_unused(struct ieee80211_key *key);
 #define key_mtx_dereference(local, ref) \
 	rcu_dereference_protected(ref, lockdep_is_held(&((local)->key_mtx)))
 

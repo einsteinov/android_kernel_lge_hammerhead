@@ -2292,7 +2292,8 @@ void ath6kl_check_wow_status(struct ath6kl *ar)
 
 static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
 			      struct ieee80211_channel *chan,
-			      enum nl80211_channel_type channel_type)
+			      //enum nl80211_channel_type channel_type)
+                  enum nl80211_chan_width chan_width)
 {
 	struct ath6kl_vif *vif;
 

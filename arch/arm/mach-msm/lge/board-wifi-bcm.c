@@ -30,8 +30,8 @@
 #include <linux/wlan_plat.h>
 #include <linux/fs.h>
 #include <asm/io.h>
-#include <mach/board_lge.h>
-
+//#include <mach/board_lge.h>
+#include <mach/board-sony_shinano-wifi.h>
 #define WLAN_STATIC_SCAN_BUF0           5
 #define WLAN_STATIC_SCAN_BUF1           6
 #define PREALLOC_WLAN_SEC_NUM           4

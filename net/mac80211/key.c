@@ -25,6 +25,8 @@
 #include "debugfs_key.h"
 #include "aes_ccm.h"
 #include "aes_cmac.h"
+#include "aes_gmac.h"
+#include "aes_gcm.h"
 
 
 /**
@@ -417,11 +419,31 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 
 static void ieee80211_key_free_common(struct ieee80211_key *key)
 {
-	if (key->conf.cipher == WLAN_CIPHER_SUITE_CCMP)
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
-	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
-	kfree(key);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		ieee80211_aes_gmac_key_free(key->u.aes_gmac.tfm);
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		ieee80211_aes_gcm_key_free(key->u.gcmp.tfm);
+		break;
+	}
+	kzfree(key);
+}
+
+void ieee80211_key_free_unused(struct ieee80211_key *key)
+{
+	WARN_ON(key->sdata || key->local);
+	ieee80211_key_free_common(key);
 }
 
 static void __ieee80211_key_destroy(struct ieee80211_key *key)
@@ -438,18 +460,16 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key)
 	if (key->local)
 		ieee80211_key_disable_hw_accel(key);
 
+	if (key->conf.cipher == WLAN_CIPHER_SUITE_CCMP)
+		ieee80211_aes_key_free(key->u.ccmp.tfm);
+	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
 	if (key->local) {
 		ieee80211_debugfs_key_remove(key);
 		key->sdata->crypto_tx_tailroom_needed_cnt--;
 	}
 
-	ieee80211_key_free_common(key);
-}
-
-void ieee80211_key_free_unused(struct ieee80211_key *key)
-{
-	WARN_ON(key->sdata || key->local);
-	ieee80211_key_free_common(key);
+	kfree(key);
 }
 
 int ieee80211_key_link(struct ieee80211_key *key,
@@ -525,9 +545,6 @@ int ieee80211_key_link(struct ieee80211_key *key,
 
 	ret = ieee80211_key_enable_hw_accel(key);
 
-	if (ret)
-		__ieee80211_key_free(key);
-
  out:
 	mutex_unlock(&sdata->local->key_mtx);
 
@@ -547,6 +564,14 @@ void __ieee80211_key_free(struct ieee80211_key *key)
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
 	__ieee80211_key_destroy(key);
+}
+
+void ieee80211_key_free(struct ieee80211_local *local,
+			struct ieee80211_key *key)
+{
+	mutex_lock(&local->key_mtx);
+	__ieee80211_key_free(key);
+	mutex_unlock(&local->key_mtx);
 }
 
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)

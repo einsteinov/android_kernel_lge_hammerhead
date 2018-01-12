@@ -32,7 +32,7 @@
 
 /* A chanspec holds the channel number, band, bandwidth and control sideband */
 typedef uint16 chanspec_t;
-
+extern char * wf_chspec_ntoa_ex(chanspec_t chspec, char *buf);
 /* channel defines */
 #define CH_UPPER_SB			0x01
 #define CH_LOWER_SB			0x02
@@ -51,19 +51,18 @@ typedef uint16 chanspec_t;
 				  (sep))
 
 /* All builds use the new 11ac ratespec/chanspec */
+#define WL_CHANSPEC_CTL_SB_NONE		0x0300
 #undef  D11AC_IOTYPES
 #define D11AC_IOTYPES
-
 #ifndef D11AC_IOTYPES
 
 #define WL_CHANSPEC_CHAN_MASK		0x00ff
 #define WL_CHANSPEC_CHAN_SHIFT		0
-
 #define WL_CHANSPEC_CTL_SB_MASK		0x0300
 #define WL_CHANSPEC_CTL_SB_SHIFT	     8
 #define WL_CHANSPEC_CTL_SB_LOWER	0x0100
 #define WL_CHANSPEC_CTL_SB_UPPER	0x0200
-#define WL_CHANSPEC_CTL_SB_NONE		0x0300
+//#define WL_CHANSPEC_CTL_SB_NONE		0x0300
 
 #define WL_CHANSPEC_BW_MASK		0x0C00
 #define WL_CHANSPEC_BW_SHIFT		    10
@@ -491,6 +490,8 @@ extern int wf_channel2mhz(uint channel, uint start_factor);
  *
  */
 extern uint16 wf_channel2chspec(uint ctl_ch, uint bw);
+
+extern chanspec_t wf_chspec_80(uint8 center_channel, uint8 primary_channel);
 
 extern uint wf_channel2freq(uint channel);
 extern uint wf_freq2channel(uint freq);

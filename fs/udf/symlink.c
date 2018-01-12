@@ -122,7 +122,7 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	err = udf_pc_to_char(inode->i_sb, symlink, inode->i_size, p, PAGE_SIZE);
 	brelse(bh);
 	if (err)
-		goto out_unlock_inode;
+		goto out;
 
 	up_read(&iinfo->i_data_sem);
 	SetPageUptodate(page);

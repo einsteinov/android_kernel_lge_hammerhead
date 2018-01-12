@@ -51,7 +51,7 @@
 #include "../platsmp.h"
 #include <mach/msm_serial_hs_lite.h>
 #include <mach/board_lge.h>
-
+//#include <mach/board-sony_shinano-wifi.h>
 
 static struct memtype_reserve msm8974_reserve_table[] __initdata = {
 	[MEMTYPE_SMI] = {
@@ -94,9 +94,10 @@ static void __init msm8974_early_memory(void)
  * into this category, and thus the driver should not be added here. The
  * EPROBE_DEFER can satisfy most dependency problems.
  */
-#if defined (CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
-extern void init_bcm_wifi(void);
-#endif
+//#if defined (CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
+//extern void init_bcm_wifi(void);
+//extern static int __init shinano_wifi_init(void);
+//#endif
 
 void __init msm8974_add_drivers(void)
 {
@@ -111,9 +112,10 @@ void __init msm8974_add_drivers(void)
 	tsens_tm_init_driver();
 	msm_thermal_device_init();
 	lge_add_persistent_device();
-#if defined (CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
-	init_bcm_wifi();
-#endif
+//#if defined (CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
+	//init_bcm_wifi();
+  //  shinano_wifi_init();
+//#endif
 }
 
 static struct of_dev_auxdata msm8974_auxdata_lookup[] __initdata = {

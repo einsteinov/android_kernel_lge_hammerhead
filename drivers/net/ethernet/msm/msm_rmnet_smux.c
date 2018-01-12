@@ -55,7 +55,7 @@ module_param_named(debug_enable, msm_rmnet_smux_debug_mask,
 #define DBG2(x...) DBG(DEBUG_MASK_LVL2, x)
 
 /* Configure device instances */
-#define RMNET_SMUX_DEVICE_COUNT (1)
+#define RMNET_SMUX_DEVICE_COUNT (2)
 
 /* allow larger frames */
 #define RMNET_DATA_LEN 2000
@@ -769,7 +769,7 @@ static int rmnet_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	default:
-		pr_err("[%s] error: rmnet_ioct called for unsupported cmd[%d]",
+		DBG0("[%s] error: rmnet_ioct called for unsupported cmd[%d]",
 			   dev->name, cmd);
 		return -EINVAL;
 	}

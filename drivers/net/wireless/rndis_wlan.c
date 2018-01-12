@@ -555,7 +555,7 @@ static int rndis_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 static int rndis_leave_ibss(struct wiphy *wiphy, struct net_device *dev);
 
 static int rndis_set_channel(struct wiphy *wiphy, struct net_device *dev,
-	struct ieee80211_channel *chan, enum nl80211_channel_type channel_type);
+	struct ieee80211_channel *chan, enum nl80211_chan_width chan_width);//enum nl80211_channel_type channel_type);
 
 static int rndis_add_key(struct wiphy *wiphy, struct net_device *netdev,
 			 u8 key_index, bool pairwise, const u8 *mac_addr,
@@ -2424,7 +2424,7 @@ static int rndis_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 }
 
 static int rndis_set_channel(struct wiphy *wiphy, struct net_device *netdev,
-	struct ieee80211_channel *chan, enum nl80211_channel_type channel_type)
+	struct ieee80211_channel *chan, enum nl80211_chan_width chan_width) //enum nl80211_channel_type channel_type)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
 	struct usbnet *usbdev = priv->usbdev;
